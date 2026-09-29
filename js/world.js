@@ -270,6 +270,133 @@ class World {
     }
 }
 
+// Room Class - Manages individual room properties
+class Room {
+    constructor(id, name, description, x, y) {
+        this.id = id;
+        this.name = name;
+        this.description = description;
+        this.x = x;
+        this.y = y;
+        this.objects = {};
+        this.npcs = [];
+        this.exits = {};
+        this.visited = false;
+        this.ambient = null;
+        this.properties = {};
+    }
+
+    addObject(id, obj) {
+        this.objects[id] = obj;
+    }
+
+    removeObject(id) {
+        delete this.objects[id];
+    }
+
+    getObject(id) {
+        return this.objects[id] || null;
+    }
+
+    addNPC(npc) {
+        this.npcs.push(npc);
+    }
+
+    removeNPC(npcId) {
+        this.npcs = this.npcs.filter(npc => npc.id !== npcId);
+    }
+
+    getNPCs() {
+        return this.npcs;
+    }
+
+    addExit(direction, targetRoomId) {
+        this.exits[direction] = targetRoomId;
+    }
+
+    getExit(direction) {
+        return this.exits[direction] || null;
+    }
+
+    getAllExits() {
+        return this.exits;
+    }
+
+    setVisited() {
+        this.visited = true;
+    }
+
+    setAmbient(ambientId) {
+        this.ambient = ambientId;
+    }
+
+    setProperty(key, value) {
+        this.properties[key] = value;
+    }
+
+    getProperty(key) {
+        return this.properties[key] || null;
+    }
+
+    getDescription(shiftActive = false) {
+        if (shiftActive && this.properties['shifted_description']) {
+            return this.properties['shifted_description'];
+        }
+        return this.description;
+    }
+
+    getStatus() {
+        return {
+            id: this.id,
+            name: this.name,
+            visited: this.visited,
+            objectCount: Object.keys(this.objects).length,
+            npcCount: this.npcs.length,
+            exits: Object.keys(this.exits)
+        };
+    }
+}
+
+// WorldObject Class - Represents interactive objects in the world
+class WorldObject {
+    constructor(id, name, description) {
+        this.id = id;
+        this.name = name;
+        this.description = description;
+        this.interactable = true;
+        this.discoverable = false;
+        this.shiftRevealed = false;
+        this.usedWith = [];
+        this.properties = {};
+    }
+
+    interact(player) {
+        return {
+            success: true,
+            message: `You interact with the ${this.name}.`
+        };
+    }
+
+    examine(shiftActive = false) {
+        if (shiftActive && this.shiftRevealed) {
+            return `${this.name}: ${this.description} (Something is hidden here...)`;
+        }
+        return `${this.name}: ${this.description}`;
+    }
+
+    revealOnShift() {
+        this.shiftRevealed = true;
+    }
+
+    setProperty(key, value) {
+        this.properties[key] = value;
+    }
+
+    getProperty(key) {
+        return this.properties[key] || null;
+    }
+}
+
 // NPC Class
 class NPC {
     constructor(id, x, y, name, room, isBoss) {
@@ -329,3 +456,36 @@ class NPC {
         ctx.fillRect(this.x + this.width + 5, this.y + 5 + (this.animationFrame * 2), 4, 4);
     }
 }
+
+// Predefined world objects
+const WORLD_OBJECTS = {
+    LOCKED_DOOR: {
+        id: 'locked_door',
+        name: 'Locked Door',
+        description: 'A heavy wooden door. It is locked.',
+        shiftDescription: 'The door seems to breathe. It feels... alive.'
+    },
+    DUSTY_SHELF: {
+        id: 'dusty_shelf',
+        name: 'Dusty Shelf',
+        description: 'An old shelf covered in dust. Something might be hidden here.',
+        shiftDescription: 'The shelf glows faintly. Behind the dust, you see symbols.'
+    },
+    PORTRAIT: {
+        id: 'portrait',
+        name: 'Portrait',
+        description: 'An old painting of someone. Their eyes follow you.',
+        shiftDescription: 'The portrait writhes. The figure\'s mouth opens in a silent scream.'
+    },
+    MIRROR: {
+        id: 'mirror',
+        name: 'Mirror',
+        description: 'A dusty mirror. You see your reflection.',
+        shiftDescription: 'Your reflection doesn\'t move with you. It smiles.'
+    },
+    DOOR: {
+        id: 'door',
+        name: 'Door',
+        description: 'A door leading elsewhere.'
+    }
+};
