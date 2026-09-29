@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROAB - A Deltarune-Style RPG</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="game-container">
+        <div id="canvas-wrapper">
+            <canvas id="game-canvas"></canvas>
+        </div>
+        <div id="ui-container">
+            <div id="dialogue-box"></div>
+            <div id="interaction-prompt"></div>
+            <div id="hp-display"></div>
+        </div>
+    </div>
+
+    <!-- Core Game Engine -->
+    <script src="js/game.js"></script>
+    
+    <!-- Player & World -->
+    <script src="js/player.js"></script>
+    <script src="js/world.js"></script>
+    <script src="js/interaction.js"></script>
+    
+    <!-- Mechanics -->
+    <script src="js/shift.js"></script>
+    <script src="js/dialogue.js"></script>
+    <script src="js/inventory.js"></script>
+    <script src="js/save.js"></script>
+    
+    <!-- Battle System -->
+    <script src="js/battle.js"></script>
+    <script src="js/soul.js"></script>
+    <script src="js/attacks.js"></script>
+    
+    <!-- Bosses -->
+    <script src="js/bosses/morrow.js"></script>
+    <script src="js/bosses/fallenKnight.js"></script>
+    <script src="js/bosses/finalVow.js"></script>
+    <script src="js/bosses/falseShepherd.js"></script>
+</body>
+</html>
