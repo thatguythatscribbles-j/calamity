@@ -17,8 +17,9 @@ class Game {
         this.dialogue = null;
         this.inventory = null;
         this.save = null;
-
         this.keys = {};
+        this.testBattleUsed = false;
+
         this.init();
     }
 
@@ -38,31 +39,24 @@ class Game {
         window.addEventListener('keydown', (e) => {
             const key = e.key.toLowerCase();
 
-            // Battle input handling
+            // Press B at any time during exploration to start a safe test fight.
+            // This makes the battle system immediately testable without reaching a boss room.
+            if (this.state === 'exploration' && key === 'b') {
+                this.startTestBattle();
+                return;
+            }
+
             if (this.state === 'battle' && this.battle && this.battle.isActive) {
-                if (key === '1') {
-                    this.battle.performPlayerAction('attack');
-                    if (this.battle.isComplete()) {
-                        this.endBattle();
-                    }
-                    return;
-                }
-                if (key === '2') {
-                    this.battle.performPlayerAction('ability');
-                    if (this.battle.isComplete()) {
-                        this.endBattle();
-                    }
-                    return;
-                }
-                if (key === '3') {
-                    this.battle.performPlayerAction('defend');
-                    if (this.battle.isComplete()) {
-                        this.endBattle();
-                    }
-                    return;
-                }
-                if (key === '4') {
-                    this.battle.performPlayerAction('escape');
+                const actions = {
+                    '1': 'attack',
+                    '2': 'ability',
+                    '3': 'defend',
+                    '4': 'escape'
+                };
+
+                if (actions[key]) {
+                    e.preventDefault();
+                    this.battle.performPlayerAction(actions[key]);
                     if (this.battle.isComplete()) {
                         this.endBattle();
                     }
@@ -70,7 +64,6 @@ class Game {
                 }
             }
 
-            // Normal exploration input
             this.keys[key] = true;
 
             if (e.key === 'Shift') {
@@ -130,7 +123,6 @@ class Game {
     }
 
     updateExploration() {
-        // Handle movement
         let dx = 0;
         let dy = 0;
 
@@ -146,33 +138,30 @@ class Game {
             this.player.isMoving = false;
         }
 
-        // Update world
         this.world.update(this.player, this.shiftActive);
 
-        // Check for battle triggers
         if (this.world.checkBattleTrigger(this.player)) {
             this.startBattle(this.world.triggeredBoss);
         }
 
-        // Update interactable prompt
         const nearbyEntity = this.world.getNearbyInteractable(this.player);
         this.updateInteractionPrompt(nearbyEntity);
     }
 
     updateInteractionPrompt(entity) {
         const prompt = document.getElementById('interaction-prompt');
+        if (!prompt) return;
+
         if (entity) {
-            prompt.textContent = '[E] Interact';
+            prompt.textContent = '[Enter] Interact  |  [B] Test Battle';
             prompt.classList.add('visible');
         } else {
-            prompt.classList.remove('visible');
+            prompt.textContent = '[B] Test Battle';
+            prompt.classList.add('visible');
         }
     }
 
-    startBattle(bossData) {
-        if (!bossData) return;
-
-        // Create player battle entity
+    createPlayerBattleEntity() {
         const playerEntity = new BattleEntity(
             'parralexs',
             this.player.name,
@@ -181,12 +170,30 @@ class Game {
             3,
             5
         );
+        playerEntity.currentHealth = Math.max(1, Math.min(this.player.hp, playerEntity.maxHealth));
+        playerEntity.addAbility(new Ability('heal', 'Heal', 'Restore health', 0, 8, 'heal'));
+        return playerEntity;
+    }
 
-        // Add heal ability
-        const healAbility = new Ability('heal', 'Heal', 'Restore health', 0, 8, 'heal');
-        playerEntity.addAbility(healAbility);
+    startTestBattle() {
+        this.startBattle({
+            id: 'shadow_creature',
+            name: 'Shadow Creature',
+            maxHealth: 45,
+            attack: 7,
+            defense: 2,
+            speed: 5,
+            isTestBattle: true
+        });
+    }
 
-        // Create enemy battle entity from boss data
+    startBattle(bossData) {
+        if (!bossData || typeof BattleEntity === 'undefined' || typeof Battle === 'undefined') {
+            console.error('Battle dependencies are unavailable.', { bossData });
+            return;
+        }
+
+        const playerEntity = this.createPlayerBattleEntity();
         const enemyEntity = new BattleEntity(
             bossData.id || 'enemy',
             bossData.name || 'Enemy',
@@ -202,18 +209,27 @@ class Game {
     }
 
     endBattle() {
-        if (this.battle && this.battle.winner) {
-            // Update player HP from battle
+        if (!this.battle) return;
+
+        const won = this.battle.winner === this.battle.player;
+        const escaped = won && this.battle.player.currentHealth > 0 && this.battle.enemy.isAlive();
+
+        if (this.battle.player.currentHealth > 0) {
             this.player.hp = this.battle.player.currentHealth;
+        } else {
+            this.player.reset();
+        }
+
+        // Only mark a boss as defeated after an actual victory, not after escaping.
+        if (won && !escaped && this.world.triggeredBoss) {
+            this.world.onBattleComplete();
         }
 
         this.state = 'exploration';
         this.battle = null;
-        this.world.onBattleComplete();
     }
 
     render() {
-        // Clear canvas
         this.ctx.fillStyle = '#000';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
@@ -221,15 +237,12 @@ class Game {
             this.world.render(this.ctx, this.player, this.shiftActive);
             this.player.render(this.ctx);
         } else if (this.state === 'battle') {
-            if (this.battle) {
-                this.battle.render(this.ctx);
-            }
+            if (this.battle) this.battle.render(this.ctx);
         } else if (this.state === 'dialogue') {
             this.world.render(this.ctx, this.player, this.shiftActive);
             this.player.render(this.ctx);
         }
 
-        // Render dialogue if active
         if (this.state === 'dialogue') {
             this.dialogue.render();
         }
@@ -242,7 +255,6 @@ class Game {
     }
 }
 
-// Initialize game when page loads
 window.addEventListener('DOMContentLoaded', () => {
     window.game = new Game();
 });
