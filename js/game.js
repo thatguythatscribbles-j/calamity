@@ -36,7 +36,42 @@ class Game {
 
     setupInputHandling() {
         window.addEventListener('keydown', (e) => {
-            this.keys[e.key.toLowerCase()] = true;
+            const key = e.key.toLowerCase();
+
+            // Battle input handling
+            if (this.state === 'battle' && this.battle && this.battle.isActive) {
+                if (key === '1') {
+                    this.battle.performPlayerAction('attack');
+                    if (this.battle.isComplete()) {
+                        this.endBattle();
+                    }
+                    return;
+                }
+                if (key === '2') {
+                    this.battle.performPlayerAction('ability');
+                    if (this.battle.isComplete()) {
+                        this.endBattle();
+                    }
+                    return;
+                }
+                if (key === '3') {
+                    this.battle.performPlayerAction('defend');
+                    if (this.battle.isComplete()) {
+                        this.endBattle();
+                    }
+                    return;
+                }
+                if (key === '4') {
+                    this.battle.performPlayerAction('escape');
+                    if (this.battle.isComplete()) {
+                        this.endBattle();
+                    }
+                    return;
+                }
+            }
+
+            // Normal exploration input
+            this.keys[key] = true;
 
             if (e.key === 'Shift') {
                 this.handleShift();
@@ -73,10 +108,6 @@ class Game {
                 this.state = 'exploration';
                 this.dialogue.reset();
             }
-        } else if (this.state === 'battle') {
-            if (this.battle.playerTurnActive) {
-                this.battle.handleMenuSelect();
-            }
         }
     }
 
@@ -93,11 +124,6 @@ class Game {
 
         if (this.state === 'exploration') {
             this.updateExploration();
-        } else if (this.state === 'battle') {
-            this.battle.update();
-            if (this.battle.isComplete()) {
-                this.endBattle();
-            }
         } else if (this.state === 'dialogue') {
             this.dialogue.update();
         }
@@ -143,12 +169,44 @@ class Game {
         }
     }
 
-    startBattle(boss) {
+    startBattle(bossData) {
+        if (!bossData) return;
+
+        // Create player battle entity
+        const playerEntity = new BattleEntity(
+            'parralexs',
+            this.player.name,
+            this.player.maxHp,
+            8,
+            3,
+            5
+        );
+
+        // Add heal ability
+        const healAbility = new Ability('heal', 'Heal', 'Restore health', 0, 8, 'heal');
+        playerEntity.addAbility(healAbility);
+
+        // Create enemy battle entity from boss data
+        const enemyEntity = new BattleEntity(
+            bossData.id || 'enemy',
+            bossData.name || 'Enemy',
+            bossData.maxHealth || 40,
+            bossData.attack || 8,
+            bossData.defense || 3,
+            bossData.speed || 5
+        );
+
         this.state = 'battle';
-        this.battle = new Battle(boss, this.player);
+        this.battle = new Battle(playerEntity, enemyEntity, bossData.id || 'boss_fight');
+        this.battle.battleLog.push(`${enemyEntity.name} appears!`);
     }
 
     endBattle() {
+        if (this.battle && this.battle.winner) {
+            // Update player HP from battle
+            this.player.hp = this.battle.player.currentHealth;
+        }
+
         this.state = 'exploration';
         this.battle = null;
         this.world.onBattleComplete();
@@ -163,7 +221,9 @@ class Game {
             this.world.render(this.ctx, this.player, this.shiftActive);
             this.player.render(this.ctx);
         } else if (this.state === 'battle') {
-            this.battle.render(this.ctx);
+            if (this.battle) {
+                this.battle.render(this.ctx);
+            }
         } else if (this.state === 'dialogue') {
             this.world.render(this.ctx, this.player, this.shiftActive);
             this.player.render(this.ctx);
