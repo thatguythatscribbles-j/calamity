@@ -1,197 +1,517 @@
-// UI and HUD System
-class HUD {
-    constructor() {
-        this.elements = {};
-        this.isVisible = true;
+// UI and Menu System
+class UIElement {
+    constructor(id, x, y, width, height) {
+        this.id = id;
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+        this.visible = true;
+        this.active = false;
+        this.children = [];
     }
 
-    register(id, element) {
-        this.elements[id] = element;
+    contains(x, y) {
+        return x >= this.x && x <= this.x + this.width &&
+               y >= this.y && y <= this.y + this.height;
     }
 
-    updateHealth(health, maxHealth) {
-        const healthEl = this.elements.healthBar;
-        if (!healthEl) return;
-
-        const percent = Math.max(0, Math.min(100, (health / maxHealth) * 100));
-        healthEl.style.width = `${percent}%`;
-        healthEl.textContent = `${health}/${maxHealth}`;
+    addChild(element) {
+        this.children.push(element);
     }
 
-    updateInventory(inventory) {
-        const inventoryEl = this.elements.inventoryList;
-        if (!inventoryEl) return;
-
-        inventoryEl.innerHTML = '';
-
-        if (inventory.items.length === 0) {
-            const empty = document.createElement('li');
-            empty.textContent = 'Inventory empty';
-            inventoryEl.appendChild(empty);
-            return;
-        }
-
-        inventory.items.forEach((item, index) => {
-            const li = document.createElement('li');
-            li.textContent = `${index + 1}. ${item.name}`;
-            li.dataset.index = index;
-            inventoryEl.appendChild(li);
-        });
-    }
-
-    updateQuestLog(quests) {
-        const questEl = this.elements.questLog;
-        if (!questEl) return;
-
-        questEl.innerHTML = '';
-
-        if (!quests || quests.length === 0) {
-            const item = document.createElement('li');
-            item.textContent = 'No active quests';
-            questEl.appendChild(item);
-            return;
-        }
-
-        quests.forEach(quest => {
-            const item = document.createElement('li');
-            item.textContent = `${quest.title} (${Math.round(quest.progress)}%)`;
-            questEl.appendChild(item);
-        });
-    }
-
-    updateDialogue(text) {
-        const dialogueEl = this.elements.dialogueBox;
-        if (!dialogueEl) return;
-        dialogueEl.textContent = text;
-    }
-
-    updateShiftState(active, severity = 0) {
-        const shiftEl = this.elements.shiftIndicator;
-        if (!shiftEl) return;
-
-        shiftEl.textContent = active ? 'SHIFT ACTIVE' : 'NORMAL';
-        shiftEl.classList.toggle('active', active);
-        shiftEl.style.filter = active ? `blur(${severity}px)` : 'none';
+    removeChild(element) {
+        this.children = this.children.filter(child => child !== element);
     }
 
     setVisible(visible) {
-        this.isVisible = visible;
-        Object.values(this.elements).forEach(el => {
-            if (el) el.style.display = visible ? 'block' : 'none';
-        });
+        this.visible = visible;
+    }
+
+    setActive(active) {
+        this.active = active;
+    }
+
+    update() {
+        // Override in subclasses
+    }
+
+    render(ctx) {
+        // Override in subclasses
     }
 }
 
-class NotificationManager {
-    constructor() {
-        this.container = null;
+class Button extends UIElement {
+    constructor(id, x, y, width, height, text, callback) {
+        super(id, x, y, width, height);
+        this.text = text;
+        this.callback = callback;
+        this.hovered = false;
+        this.pressed = false;
     }
 
-    setContainer(container) {
-        this.container = container;
+    onClick() {
+        if (this.callback) {
+            this.callback();
+        }
     }
 
-    show(message, type = 'info', duration = 2500) {
-        if (!this.container) return;
+    render(ctx) {
+        if (!this.visible) return;
 
-        const note = document.createElement('div');
-        note.className = `notification ${type}`;
-        note.textContent = message;
+        ctx.fillStyle = this.pressed ? '#333' : this.hovered ? '#555' : '#444';
+        ctx.fillRect(this.x, this.y, this.width, this.height);
 
-        this.container.appendChild(note);
+        ctx.strokeStyle = this.active ? '#fff' : '#888';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(this.x, this.y, this.width, this.height);
 
-        setTimeout(() => {
-            note.classList.add('fade-out');
-            setTimeout(() => note.remove(), 500);
-        }, duration);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.text, this.x + this.width / 2, this.y + this.height / 2);
     }
 }
 
-class MenuManager {
+class Panel extends UIElement {
+    constructor(id, x, y, width, height, title = '') {
+        super(id, x, y, width, height);
+        this.title = title;
+        this.backgroundColor = '#1a1a1a';
+        this.borderColor = '#666';
+    }
+
+    render(ctx) {
+        if (!this.visible) return;
+
+        ctx.fillStyle = this.backgroundColor;
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+
+        ctx.strokeStyle = this.borderColor;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(this.x, this.y, this.width, this.height);
+
+        if (this.title) {
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(this.title, this.x + 10, this.y + 20);
+        }
+
+        for (let child of this.children) {
+            child.render(ctx);
+        }
+    }
+}
+
+class TextDisplay extends UIElement {
+    constructor(id, x, y, width, height, text = '') {
+        super(id, x, y, width, height);
+        this.text = text;
+        this.fontSize = 14;
+        this.textColor = '#fff';
+    }
+
+    setText(text) {
+        this.text = text;
+    }
+
+    render(ctx) {
+        if (!this.visible) return;
+
+        ctx.fillStyle = this.textColor;
+        ctx.font = `${this.fontSize}px Arial`;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+
+        const lines = this.text.split('\n');
+        let y = this.y;
+        for (let line of lines) {
+            ctx.fillText(line, this.x, y);
+            y += this.fontSize + 5;
+        }
+    }
+}
+
+class Menu {
+    constructor(id, title) {
+        this.id = id;
+        this.title = title;
+        this.elements = {};
+        this.visible = false;
+        this.active = false;
+    }
+
+    addElement(element) {
+        this.elements[element.id] = element;
+    }
+
+    getElement(elementId) {
+        return this.elements[elementId] || null;
+    }
+
+    show() {
+        this.visible = true;
+        this.active = true;
+    }
+
+    hide() {
+        this.visible = false;
+        this.active = false;
+    }
+
+    update() {
+        for (let element of Object.values(this.elements)) {
+            if (element.visible) {
+                element.update();
+            }
+        }
+    }
+
+    render(ctx) {
+        if (!this.visible) return;
+
+        for (let element of Object.values(this.elements)) {
+            if (element.visible) {
+                element.render(ctx);
+            }
+        }
+    }
+
+    handleClick(x, y) {
+        for (let element of Object.values(this.elements)) {
+            if (element.visible && element.contains(x, y)) {
+                if (element instanceof Button) {
+                    element.onClick();
+                }
+            }
+        }
+    }
+}
+
+class UIManager {
     constructor() {
         this.menus = {};
+        this.currentMenu = null;
+        this.hud = {
+            playerHealth: null,
+            playerLevel: null,
+            locationName: null
+        };
     }
 
-    register(id, menuElement) {
-        this.menus[id] = menuElement;
+    createMenu(id, title) {
+        const menu = new Menu(id, title);
+        this.menus[id] = menu;
+        return menu;
     }
 
-    open(id) {
-        Object.values(this.menus).forEach(menu => {
-            if (menu) menu.style.display = 'none';
-        });
-
-        const target = this.menus[id];
-        if (target) target.style.display = 'block';
+    openMenu(menuId) {
+        if (this.currentMenu) {
+            this.currentMenu.hide();
+        }
+        const menu = this.menus[menuId];
+        if (menu) {
+            menu.show();
+            this.currentMenu = menu;
+            return true;
+        }
+        return false;
     }
 
-    close(id) {
-        const target = this.menus[id];
-        if (target) target.style.display = 'none';
+    closeMenu() {
+        if (this.currentMenu) {
+            this.currentMenu.hide();
+            this.currentMenu = null;
+        }
     }
 
-    closeAll() {
-        Object.values(this.menus).forEach(menu => {
-            if (menu) menu.style.display = 'none';
-        });
+    getCurrentMenu() {
+        return this.currentMenu;
+    }
+
+    setHUDValue(key, value) {
+        this.hud[key] = value;
+    }
+
+    update() {
+        if (this.currentMenu) {
+            this.currentMenu.update();
+        }
+    }
+
+    render(ctx) {
+        this.renderHUD(ctx);
+
+        if (this.currentMenu) {
+            this.currentMenu.render(ctx);
+        }
+    }
+
+    renderHUD(ctx) {
+        ctx.fillStyle = '#fff';
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'left';
+
+        let y = 10;
+        if (this.hud.playerHealth !== null) {
+            ctx.fillText(`Health: ${this.hud.playerHealth}`, 10, y);
+            y += 20;
+        }
+        if (this.hud.playerLevel !== null) {
+            ctx.fillText(`Level: ${this.hud.playerLevel}`, 10, y);
+            y += 20;
+        }
+        if (this.hud.locationName !== null) {
+            ctx.fillText(`Location: ${this.hud.locationName}`, 10, y);
+        }
+    }
+
+    handleClick(x, y) {
+        if (this.currentMenu) {
+            this.currentMenu.handleClick(x, y);
+        }
     }
 }
 
-class ControlHints {
+class InventoryMenu extends Menu {
     constructor() {
-        this.hints = {};
+        super('inventory', 'Inventory');
+        this.items = [];
+        this.setupUI();
     }
 
-    register(id, text) {
-        this.hints[id] = text;
-    }
+    setupUI() {
+        const panel = new Panel('inventory_panel', 50, 50, 500, 600, 'Inventory');
+        this.addElement(panel);
 
-    render(targetElement) {
-        if (!targetElement) return;
-        targetElement.innerHTML = '';
-
-        Object.entries(this.hints).forEach(([id, text]) => {
-            const item = document.createElement('li');
-            item.textContent = `${id}: ${text}`;
-            targetElement.appendChild(item);
+        const closeButton = new Button('close_btn', 500, 60, 40, 30, 'X', () => {
+            window.game.ui.closeMenu();
         });
+        this.addElement(closeButton);
+    }
+
+    addItem(item) {
+        this.items.push(item);
+    }
+
+    removeItem(itemId) {
+        this.items = this.items.filter(item => item.id !== itemId);
+    }
+
+    render(ctx) {
+        super.render(ctx);
+
+        ctx.fillStyle = '#fff';
+        ctx.font = '12px Arial';
+        let y = 100;
+        for (let item of this.items) {
+            ctx.fillText(`${item.name} x${item.quantity}`, 70, y);
+            y += 25;
+        }
+    }
+}
+
+class QuestLogMenu extends Menu {
+    constructor() {
+        super('quests', 'Quest Log');
+        this.quests = [];
+        this.setupUI();
+    }
+
+    setupUI() {
+        const panel = new Panel('quest_panel', 50, 50, 500, 600, 'Quest Log');
+        this.addElement(panel);
+
+        const closeButton = new Button('close_btn', 500, 60, 40, 30, 'X', () => {
+            window.game.ui.closeMenu();
+        });
+        this.addElement(closeButton);
+    }
+
+    setQuests(quests) {
+        this.quests = quests;
+    }
+
+    render(ctx) {
+        super.render(ctx);
+
+        ctx.fillStyle = '#fff';
+        ctx.font = '12px Arial';
+        let y = 100;
+        for (let quest of this.quests) {
+            ctx.fillStyle = quest.completed ? '#90EE90' : '#fff';
+            ctx.fillText(`${quest.title} - ${quest.progress}%`, 70, y);
+            y += 25;
+        }
+    }
+}
+
+class PauseMenu extends Menu {
+    constructor() {
+        super('pause', 'Paused');
+        this.setupUI();
+    }
+
+    setupUI() {
+        const panel = new Panel('pause_panel', 300, 200, 400, 300, 'Game Paused');
+        this.addElement(panel);
+
+        const resumeButton = new Button('resume_btn', 350, 250, 120, 40, 'Resume', () => {
+            window.game.togglePause();
+        });
+        this.addElement(resumeButton);
+
+        const settingsButton = new Button('settings_btn', 350, 310, 120, 40, 'Settings', () => {
+            // Settings menu
+        });
+        this.addElement(settingsButton);
+
+        const quitButton = new Button('quit_btn', 350, 370, 120, 40, 'Quit', () => {
+            window.location.reload();
+        });
+        this.addElement(quitButton);
+    }
+}
+
+class DialogueMenu extends Menu {
+    constructor() {
+        super('dialogue', 'Dialogue');
+        this.dialogueText = '';
+        this.speaker = '';
+        this.choices = [];
+        this.setupUI();
+    }
+
+    setupUI() {
+        const panel = new Panel('dialogue_panel', 50, 500, 1180, 180, '');
+        this.addElement(panel);
+    }
+
+    setDialogue(speaker, text, choices = []) {
+        this.speaker = speaker;
+        this.dialogueText = text;
+        this.choices = choices;
+
+        const panel = this.elements['dialogue_panel'];
+        panel.children = [];
+
+        let x = 70;
+        for (let i = 0; i < choices.length; i++) {
+            const button = new Button(`choice_${i}`, x, 620, 200, 30, choices[i].text, () => {
+                if (window.game.dialogueManager) {
+                    window.game.dialogueManager.advance(i);
+                }
+            });
+            panel.addChild(button);
+            x += 220;
+        }
+    }
+
+    render(ctx) {
+        if (!this.visible) return;
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+        ctx.fillRect(50, 500, 1180, 180);
+
+        ctx.strokeStyle = '#666';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(50, 500, 1180, 180);
+
+        ctx.fillStyle = '#ffff00';
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'left';
+        ctx.fillText(this.speaker, 70, 520);
+
+        ctx.fillStyle = '#fff';
+        ctx.font = '12px Arial';
+        let y = 545;
+        for (let line of this.dialogueText.split('\n')) {
+            ctx.fillText(line, 70, y);
+            y += 18;
+        }
+
+        for (let child of this.elements['dialogue_panel'].children) {
+            child.render(ctx);
+        }
+    }
+}
+
+class BattleUI extends Menu {
+    constructor() {
+        super('battle', 'Battle');
+        this.battleState = null;
+        this.setupUI();
+    }
+
+    setupUI() {
+        const panel = new Panel('battle_panel', 0, 0, 1280, 720, '');
+        this.addElement(panel);
+    }
+
+    setBattleState(state) {
+        this.battleState = state;
+    }
+
+    render(ctx) {
+        if (!this.visible || !this.battleState) return;
+
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'left';
+        ctx.fillText(this.battleState.player.name, 50, 50);
+        ctx.font = '14px Arial';
+        ctx.fillText(`HP: ${this.battleState.player.health}/${this.battleState.player.maxHealth}`, 50, 80);
+        ctx.fillText(`Level: ${this.battleState.player.level}`, 50, 110);
+
+        ctx.textAlign = 'right';
+        ctx.font = 'bold 16px Arial';
+        ctx.fillText(this.battleState.enemy.name, 1230, 50);
+        ctx.font = '14px Arial';
+        ctx.fillText(`HP: ${this.battleState.enemy.health}/${this.battleState.enemy.maxHealth}`, 1230, 80);
+        ctx.fillText(`Level: ${this.battleState.enemy.level}`, 1230, 110);
+
+        ctx.textAlign = 'left';
+        ctx.font = '12px Arial';
+        ctx.fillStyle = '#aaa';
+        let y = 200;
+        for (let action of this.battleState.lastActions) {
+            ctx.fillText(action.message, 50, y);
+            y += 25;
+        }
+
+        const buttons = [
+            { text: 'Attack', x: 50, action: 'attack' },
+            { text: 'Ability', x: 200, action: 'ability' },
+            { text: 'Defend', x: 350, action: 'defend' },
+            { text: 'Escape', x: 500, action: 'escape' }
+        ];
+
+        ctx.fillStyle = '#444';
+        for (let btn of buttons) {
+            ctx.fillRect(btn.x, 650, 120, 40);
+            ctx.strokeStyle = '#888';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(btn.x, 650, 120, 40);
+            ctx.fillStyle = '#fff';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(btn.text, btn.x + 60, 675);
+        }
     }
 }
 
 const UI = {
-    hud: new HUD(),
-    notifications: new NotificationManager(),
-    menus: new MenuManager(),
-    hints: new ControlHints()
+    UIElement,
+    Button,
+    Panel,
+    TextDisplay,
+    Menu,
+    UIManager,
+    InventoryMenu,
+    QuestLogMenu,
+    PauseMenu,
+    DialogueMenu,
+    BattleUI
 };
-
-// Default UI registration helper
-function setupDefaultHUD() {
-    UI.hud.register('healthBar', document.getElementById('health-bar'));
-    UI.hud.register('inventoryList', document.getElementById('inventory-list'));
-    UI.hud.register('questLog', document.getElementById('quest-log'));
-    UI.hud.register('dialogueBox', document.getElementById('dialogue-box'));
-    UI.hud.register('shiftIndicator', document.getElementById('shift-indicator'));
-
-    const notificationContainer = document.getElementById('notifications');
-    if (notificationContainer) {
-        UI.notifications.setContainer(notificationContainer);
-    }
-
-    const inventoryMenu = document.getElementById('inventory-menu');
-    const questMenu = document.getElementById('quest-menu');
-    const pauseMenu = document.getElementById('pause-menu');
-
-    if (inventoryMenu) UI.menus.register('inventory', inventoryMenu);
-    if (questMenu) UI.menus.register('quests', questMenu);
-    if (pauseMenu) UI.menus.register('pause', pauseMenu);
-
-    const controls = document.getElementById('controls-hints');
-    if (controls) {
-        UI.hints.register('E', 'Interact');
-        UI.hints.register('I', 'Inventory');
-        UI.hints.register('Q', 'Quest Log');
-        UI.hints.register('Shift', 'Toggle Shift');
-        UI.hints.render(controls);
-    }
-}
