@@ -16,9 +16,8 @@ class Game {
         this.battle = null;
         this.dialogue = null;
         this.inventory = null;
-        this.save = null;
+        this.saveManager = null;
         this.keys = {};
-        this.testBattleUsed = false;
 
         this.init();
     }
@@ -29,7 +28,7 @@ class Game {
         this.world = new World();
         this.dialogue = new Dialogue();
         this.inventory = new Inventory();
-        this.save = new Save();
+        this.saveManager = new SaveManager();
         this.shift = new Shift();
 
         this.gameLoop();
