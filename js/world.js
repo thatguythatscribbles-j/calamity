@@ -98,8 +98,8 @@ class World {
             new NPC('elder', 300, 300, 'The Elder', 'outskirts', false),
             new NPC('traveler', 600, 400, 'A Traveler', 'outskirts', false),
             new NPC('child', 400, 500, 'A Child', 'outskirts', false),
-            new NPC('morrow', 1280, 720, 'Morrow', 'morrowsWonderland', true),
-            new NPC('fallenKnight', 1280, 720, 'Fallen Knight', 'fallenKnightDomain', true),
+            new NPC('morrow', 720, 420, 'Morrow', 'morrowsWonderland', true),
+            new NPC('fallenKnight', 740, 430, 'Fallen Knight', 'fallenKnightDomain', true),
         ];
     }
 
@@ -176,11 +176,25 @@ class World {
                 const dist = Math.hypot(player.x - npc.x, player.y - npc.y);
                 if (dist < 40) {
                     if (npc.id === 'morrow' && !player.morrowDefeated) {
-                        this.triggeredBoss = new Morrow();
+                        this.triggeredBoss = {
+                            id: 'morrow',
+                            name: 'Morrow',
+                            maxHealth: 90,
+                            attack: 12,
+                            defense: 4,
+                            speed: 8
+                        };
                         return true;
                     }
                     if (npc.id === 'fallenKnight' && !player.fallenKnightDefeated) {
-                        this.triggeredBoss = new FallenKnight();
+                        this.triggeredBoss = {
+                            id: 'fallenKnight',
+                            name: 'Fallen Knight',
+                            maxHealth: 130,
+                            attack: 16,
+                            defense: 6,
+                            speed: 7
+                        };
                         return true;
                     }
                 }
